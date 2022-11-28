@@ -20,18 +20,26 @@
 
 volatile static int interrupted = 0;
 
-struct mqttsub_opts {
-    int debug;
-};
-
 static error_t parse_opt(int key, char *arg, struct argp_state *state) {
     
-    struct mqttsub_opts *opts = state->input;
+    config_t *cfg = state->input;
 
     switch (key)
     {
-        case 'd': 
-            opts->debug = 1;
+        case 'a': 
+            strncpy(cfg->host, arg, CONFIG_STRLEN);
+            break;
+        case 'p': 
+            cfg->port = atoi(arg);
+            break;
+        case 'u': 
+            strncpy(cfg->username, arg, CONFIG_STRLEN);
+            break;
+        case 'w': 
+            strncpy(cfg->password, arg, CONFIG_STRLEN);
+            break;
+        case 'c': 
+            strncpy(cfg->certfile, arg, CONFIG_STRLEN);
             break;
         default:
             return ARGP_ERR_UNKNOWN;
@@ -46,13 +54,14 @@ static void signal_handler(int signo) {
 }
 
 static void message_cb(struct mosquitto *mosq, void *obj, const struct mosquitto_message *msg) {
-    printf("New message with topic %s: %s\n", msg->topic, (char *)msg->payload);
+    syslog(LOG_NOTICE,"New message with topic %s: %s\n", msg->topic, (char *)msg->payload);
 
     char text[256];
     topic_t *found_topic = NULL;
 
     config_t *cfg = (config_t *)obj;
     if (write_to_db(cfg->db, msg->topic, (char *)msg->payload)) {
+        syslog(LOG_ERR, "Failed to write message to db\n");
         return;
     }
 
@@ -65,15 +74,15 @@ static void message_cb(struct mosquitto *mosq, void *obj, const struct mosquitto
     }
 
     if (found_topic == NULL) {
-        fprintf(stderr, "Received unconfigured topic '%s'\n", msg->topic);
+        syslog(LOG_ERR, "Received unconfigured topic '%s'\n", msg->topic);
         return;
     } else {
-        fprintf(stderr, "Processing JSON on topic '%s'\n", msg->topic);
+        syslog(LOG_WARNING, "Processing JSON on topic '%s'\n", msg->topic);
     }
 
     struct json_object *root = json_tokener_parse((char *)msg->payload);
     if (!root) {
-        fprintf(stderr, "Failed to parse json\n");
+        syslog(LOG_ERR, "Failed to parse json\n");
         return;
     }
 
@@ -91,50 +100,69 @@ static void message_cb(struct mosquitto *mosq, void *obj, const struct mosquitto
 
 int main(int argc, char *argv[])
 {
-    struct mqttsub_opts opts;
-
-    struct argp_option options[] = 
+    struct argp_option options[] =
     {
-        {"debug",    'd', 0,    0, "Debug mode"},
+        {"host",     'a', "host",     0,                   "IPv4 address"},
+        {"port",     'p', "port",     OPTION_ARG_OPTIONAL, "Port number"},
+        {"username", 'u', "username", 0,                   "Username"},
+        {"password", 'w', "password", 0,                   "Password"},
+        {"certfile", 'c', "certfile", OPTION_ARG_OPTIONAL, "CA Certificate"},
         {0}
     };
     struct argp argp = {options, parse_opt};
 
-    if (argp_parse(&argp, argc, argv, 0, 0, &opts)) {
-        syslog(LOG_ERR, "Failed to parse command line arguments\n");
-        exit(EXIT_FAILURE);
-    }
-
     setlogmask(LOG_UPTO(LOG_NOTICE));
     openlog("mqttsub", LOG_CONS | LOG_PID | LOG_NDELAY, LOG_LOCAL1);
 
-    if (opts.debug)
-        syslog(LOG_DEBUG, "Started in debug mode!\n");
+    config_t *cfg = config_load();
+    if (cfg == NULL) {
+        syslog(LOG_ERR, "Failed to load config\n");
+
+        closelog();
+
+        exit(EXIT_FAILURE);
+    }
+
+    if (argp_parse(&argp, argc, argv, 0, 0, cfg)) {
+        syslog(LOG_ERR, "Failed to parse command line arguments\n");
+        
+        config_free(cfg);
+        closelog();
+
+        exit(EXIT_FAILURE);
+    }
 
     signal(SIGINT, signal_handler);
     signal(SIGTERM, signal_handler);
 
-    config_t *cfg = config_load();
-    if (cfg == NULL) {
-        fprintf(stderr, "Failed to load config\n");
-        exit(EXIT_FAILURE);
-    }
-
-    config_dump(cfg);
-
     if (init_db(&cfg->db)) {
         syslog(LOG_ERR, "Failed to init db\n");
+
+        config_free(cfg);
+        closelog();
+
         exit(EXIT_FAILURE);
     }
 
-    struct mosquitto *mosq = broker_init(&cfg->broker, message_cb, cfg);
+    struct mosquitto *mosq = broker_init(cfg, message_cb, cfg);
     if (!mosq) {
-        fprintf(stderr, "Failed to init broker\n");
+        syslog(LOG_ERR, "Failed to init broker\n");
+
+        close_db(cfg->db);
+        config_free(cfg);
+        closelog();
+
         exit(EXIT_FAILURE);
     }
 
     if (broker_subscribe(mosq, cfg->topic_list)) {
-        fprintf(stderr, "Failed to subscribe\n");
+        syslog(LOG_ERR, "Failed to subscribe\n");
+
+        broker_cleanup(mosq);
+        close_db(cfg->db);
+        config_free(cfg);
+        closelog();
+
         exit(EXIT_FAILURE);
     }
 
@@ -142,8 +170,8 @@ int main(int argc, char *argv[])
         broker_step(mosq);
     }
 
-    close_db(cfg->db);
     broker_cleanup(mosq);
+    close_db(cfg->db);
     config_free(cfg);
     closelog();
 

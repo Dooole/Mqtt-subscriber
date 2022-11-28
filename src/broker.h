@@ -5,7 +5,7 @@
 
 #include "config.h"
 
-struct mosquitto *broker_init(broker_t *bcfg,
+struct mosquitto *broker_init(config_t *cfg,
 	void (*cb)(struct mosquitto *mosq, void *obj, const struct mosquitto_message *msg), void *cbarg);
 int broker_subscribe(struct mosquitto *mosq, list_t *topic_list);
 void broker_step(struct mosquitto *mosq);

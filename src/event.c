@@ -1,10 +1,11 @@
 #include <stdlib.h>
 #include <stdio.h>
+#include <syslog.h>
 
 #include "event.h"
 
 static int compare(event_t *event, double value) {
-	fprintf(stderr, "comparing value %f with threshold %f\n",
+	syslog(LOG_NOTICE, "Comparing value %f with threshold %f\n",
 		value, event->threshold);
 
 	switch (event->condition) {
@@ -33,13 +34,15 @@ static int compare(event_t *event, double value) {
 
 static int check_string_param(event_t *event, struct json_object *item) {
 	if (json_object_get_type(item) != json_type_string) {
-		fprintf(stderr, "Not a string!\n");
+		syslog(LOG_ERR, "Not a string!\n");
 		return -1;
 	}
 
-	char *valstr = json_object_get_string(item);
-	if (!valstr)
+	const char *valstr = json_object_get_string(item);
+	if (!valstr) {
+		syslog(LOG_ERR, "Failed to get json string!\n");
 		return -1;
+	}
 
 	double value = atof(valstr);
 	return compare(event, value);
@@ -48,7 +51,7 @@ static int check_string_param(event_t *event, struct json_object *item) {
 static int check_number_param(event_t *event, struct json_object *item) {
 	if (json_object_get_type(item) != json_type_double && 
 			json_object_get_type(item) != json_type_int) {
-		fprintf(stderr, "Not a number!\n");
+		syslog(LOG_ERR, "Not a number!\n");
 		return -1;
 	}
 
@@ -61,7 +64,7 @@ int event_check(event_t *event, struct json_object *msg) {
 
 	struct json_object *item = json_object_object_get(msg, event->param);
 	if (item == NULL) {
-		printf("No param: %s\n", event->param);
+		syslog(LOG_ERR, "No param: %s\n", event->param);
 		return -1;
 	}
 

@@ -56,18 +56,6 @@ int write_to_db(sqlite3 *db, char *topic, char *msg) {
 	return 0;
 }
 
-static void print_time(int value) {
-	struct tm ts;
-	char timestr;
-
-	time_t time = (time_t)value;
-	ts = *localtime(&time);
-
-	strftime(&timestr, sizeof(timestr), "%a %Y-%m-%d %H:%M:%S %Z", &ts);
-	printf("[%d]", timestr);
-}
-
-
 void close_db(sqlite3 *db) {
 
 	if (db == NULL){

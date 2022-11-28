@@ -1,10 +1,11 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
+#include <syslog.h>
 
 #include "broker.h"
 
-struct mosquitto *broker_init(broker_t *bcfg,
+struct mosquitto *broker_init(config_t *cfg,
 	void (*cb)(struct mosquitto *mosq, void *obj, const struct mosquitto_message *msg), void *cbarg) {
 
 	int rc;
@@ -13,21 +14,29 @@ struct mosquitto *broker_init(broker_t *bcfg,
 
 	struct mosquitto *mosq = mosquitto_new(NULL, true, cbarg);
 	if (!mosq) {
-		printf("Failed to open mosquitto library\n");
+		syslog(LOG_ERR, "Failed to open mosquitto library\n");
 		return NULL;
 	}
 
 	mosquitto_message_callback_set(mosq, cb);
 
-	rc = mosquitto_username_pw_set(mosq, bcfg->username, bcfg->password);
+	if (cfg->certfile[0]) {
+		rc = mosquitto_tls_set(mosq, cfg->certfile, NULL, NULL, NULL, NULL);
+		if (rc) {
+			syslog(LOG_ERR, "Failed to set mosq tls %d\n", rc);
+			return NULL;
+		}
+	}
+
+	rc = mosquitto_username_pw_set(mosq, cfg->username, cfg->password);
 	if (rc) {
-		printf("Failed to set mosq credentials %d\n", rc);
+		syslog(LOG_ERR, "Failed to set mosq credentials %d\n", rc);
 		return NULL;
 	}
 
-	rc = mosquitto_connect(mosq, bcfg->host, bcfg->port, 10);
+	rc = mosquitto_connect(mosq, cfg->host, cfg->port, 10);
 	if (rc) {
-		printf("Could not connect to Broker with return code %d\n", rc);
+		syslog(LOG_ERR, "Could not connect to Broker with return code %d\n", rc);
 		return NULL;
 	}
 
@@ -40,15 +49,16 @@ int broker_subscribe(struct mosquitto *mosq, list_t *topic_list) {
 	list_foreach(topic_list, t) {
 		topic_t *topic = (topic_t *)t->data;
 
-		printf("Subscribing topic '%s'\n", topic->name);
+		syslog(LOG_NOTICE,"Subscribing topic '%s'\n", topic->name);
 
 		rc = mosquitto_subscribe(mosq, NULL, topic->name, topic->qos);
 		if (rc) {
-			printf("Failed to subscribe topic '%s': %d\n",
+			syslog(LOG_ERR, "Failed to subscribe topic '%s': %d\n",
 				topic->name, rc);
 			return -1;
 		}
 	}
+	return 0;
 }
 
 void broker_step(struct mosquitto *mosq) {

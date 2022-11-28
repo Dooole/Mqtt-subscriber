@@ -36,14 +36,6 @@ typedef struct topic_config {
 	int qos;
 } topic_t;
 
-typedef struct broker_config {
-	char host[CONFIG_STRLEN];
-	char username[CONFIG_STRLEN];
-	char password[CONFIG_STRLEN];
-	char certfile[CONFIG_STRLEN];
-	int port;
-} broker_t;
-
 typedef struct smtp_config {
 	char host[CONFIG_STRLEN];
 	char username[CONFIG_STRLEN];
@@ -52,10 +44,13 @@ typedef struct smtp_config {
 } smtp_t;
 
 typedef struct mqttsub_config {
-	broker_t broker;
+	char host[CONFIG_STRLEN];
+	char username[CONFIG_STRLEN];
+	char password[CONFIG_STRLEN];
+	char certfile[CONFIG_STRLEN];
+	int port;
 	smtp_t smtp;
 	list_t *topic_list;
-	int debug;
 	sqlite3 *db;
 } config_t;
 
