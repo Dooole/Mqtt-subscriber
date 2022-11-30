@@ -102,11 +102,11 @@ int main(int argc, char *argv[])
 {
     struct argp_option options[] =
     {
-        {"host",     'a', "host",     0,                   "IPv4 address"},
-        {"port",     'p', "port",     OPTION_ARG_OPTIONAL, "Port number"},
-        {"username", 'u', "username", 0,                   "Username"},
-        {"password", 'w', "password", 0,                   "Password"},
-        {"certfile", 'c', "certfile", OPTION_ARG_OPTIONAL, "CA Certificate"},
+        {"host",     'a', "host",     0, "IPv4 address"},
+        {"port",     'p', "port",     0, "Port number"},
+        {"username", 'u', "username", 0, "Username"},
+        {"password", 'w', "password", 0, "Password"},
+        {"certfile", 'c', "certfile", 0, "CA Certificate"},
         {0}
     };
     struct argp argp = {options, parse_opt};
