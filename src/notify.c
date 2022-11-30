@@ -73,12 +73,11 @@ int notify_recipients(smtp_t *smtp, list_t *email_list, char *msg) {
     curl_easy_setopt(curl, CURLOPT_READFUNCTION, payload_source);
     curl_easy_setopt(curl, CURLOPT_READDATA, &upload_ctx);
     curl_easy_setopt(curl, CURLOPT_UPLOAD, 1L);
-    curl_easy_setopt(curl, CURLOPT_VERBOSE, 1L);
 
     res = curl_easy_perform(curl);
  
     if(res != CURLE_OK)
-      syslog(LOG_ERR, "Curl_easy_perform() failed: %s\n",
+      syslog(LOG_ERR, "Email could not be sent: %s\n",
               curl_easy_strerror(res));
 
     curl_slist_free_all(recipients);
