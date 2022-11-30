@@ -3,12 +3,9 @@
 USE_PROCD=1
 
 start_service() {
-	if [ "$(uci -q get mqttsub.@mqttsub[0].enabled)" -ne 1 ]; then
-		return
-	fi
-
+	
 	local args=""
-
+	local enabled
 	local host
 	local port
 	local username
@@ -16,6 +13,7 @@ start_service() {
 	local certfile
 
 	config_load mqttsub
+	config_get enabled mqttsub 'enabled' '0'
 
 	config_get host mqttsub host
 	if [ -n "$host" ]; then
