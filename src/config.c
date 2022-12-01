@@ -106,19 +106,34 @@ static int parse_event(event_t *event,
 	opt = uci_lookup_option(uci, sec, "param");
 	if (opt && opt->type == UCI_TYPE_STRING) {
 		strncpy(event->param, opt->v.string, CONFIG_STRLEN);
-	}
-
-	opt = uci_lookup_option(uci, sec, "threshold");
-	if (opt && opt->type == UCI_TYPE_STRING) {
-		event->threshold = atof(opt->v.string);
+	} else {
+		return -1;
 	}
 
 	opt = uci_lookup_option(uci, sec, "type");
 	if (opt && opt->type == UCI_TYPE_STRING) {
 		if (!strcmp(opt->v.string, "number"))
-			event->type = PARAM_TYPE_NUM;
+			event->threshold.type = THRESHOLD_TYPE_NUM;
 		else if (!strcmp(opt->v.string, "string"))
-			event->type = PARAM_TYPE_STR;
+			event->threshold.type = THRESHOLD_TYPE_STR;
+		else
+			return -1;
+	} else {
+		return -1;
+	}
+
+	opt = uci_lookup_option(uci, sec, "threshold");
+	if (opt && opt->type == UCI_TYPE_STRING) {
+		switch (event->threshold.type) {
+			case THRESHOLD_TYPE_NUM:
+				event->threshold.number = atof(opt->v.string);
+				break;
+			case THRESHOLD_TYPE_STR:
+				strncpy(event->threshold.string, opt->v.string, CONFIG_STRLEN);
+				break;
+		}
+	} else {
+		return -1;
 	}
 
 	opt = uci_lookup_option(uci, sec, "condition");
@@ -135,6 +150,10 @@ static int parse_event(event_t *event,
 			event->condition = CONDITION_GE;
 		else if (!strcmp(opt->v.string, "<="))
 			event->condition = CONDITION_LE;
+		else
+			return -1;
+	} else {
+		return -1;
 	}
 
 	if (!event->email_list) {
@@ -153,6 +172,8 @@ static int parse_event(event_t *event,
 			char *email = list_newnode(event->email_list, CONFIG_STRLEN);
 			strncpy(email, elm->name, CONFIG_STRLEN);
 		}
+	} else {
+		return -1;
 	}
 
 	return 0;
@@ -181,15 +202,18 @@ static int parse_events(config_t *cfg,
 		struct uci_section *sec = uci_to_section(elm);
 		if (!strcmp(sec->type, "event")) {
 			opt = uci_lookup_option(uci, sec, "topic");
-			if (!(opt && opt->type == UCI_TYPE_STRING))
-				break;
+			if (!(opt && opt->type == UCI_TYPE_STRING)) {
+				return -1;
+			}
 
 			topic_t *topic = find_topic(cfg->topic_list, opt->v.string);
 			if (topic) {
 				event_t *event = list_newnode(topic->event_list, sizeof(event_t));
-				if (!event)
-					break;
-				parse_event(event, uci, sec);
+				if (!event || parse_event(event, uci, sec)) {
+					return -1;
+				}	
+			} else {
+				return -1;
 			}
 		}
 	}
@@ -280,8 +304,15 @@ void config_dump(config_t *cfg) {
 		list_foreach(topic->event_list, e) {
 			event_t *event = (event_t *)e->data;
 			printf("[%d]topic.[%d]event.param=%s\n", i, j, event->param);
-			printf("[%d]topic.[%d]event.threshold=%f\n", i, j, event->threshold);
-			printf("[%d]topic.[%d]event.type=%d\n", i, j, event->type);
+			switch (event->threshold.type) {
+				case THRESHOLD_TYPE_NUM:
+					printf("[%d]topic.[%d]event.threshold=%f\n", i, j, event->threshold.number);
+					break;
+				case THRESHOLD_TYPE_STR:
+					printf("[%d]topic.[%d]event.threshold='%s'\n", i, j, event->threshold.string);
+					break;
+			}
+			printf("[%d]topic.[%d]event.type=%d\n", i, j, event->threshold.type);
 			printf("[%d]topic.[%d]event.condition=%d\n", i, j, event->condition);
 
 			k = 0;

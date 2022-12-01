@@ -2,6 +2,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <syslog.h>
+#include <unistd.h>
 
 #include "broker.h"
 
@@ -62,7 +63,19 @@ int broker_subscribe(struct mosquitto *mosq, list_t *topic_list) {
 }
 
 void broker_step(struct mosquitto *mosq) {
-	mosquitto_loop(mosq, -1, 1);
+	int rc;
+
+	rc = mosquitto_loop(mosq, -1, 1);
+	switch (rc) {
+		case MOSQ_ERR_NO_CONN:
+		case MOSQ_ERR_CONN_LOST:
+			syslog(LOG_ERR, "Broker connection lost (%d), reconnecting...", rc);
+			if (mosquitto_reconnect(mosq)) {
+				syslog(LOG_ERR, "Reconnecting failed, sleep for 5s");
+				sleep(5);
+			}
+			break;
+	}
 }
 
 void broker_cleanup(struct mosquitto *mosq) {

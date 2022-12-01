@@ -8,8 +8,8 @@
 #define CONFIG_PATH "/etc/config/mqttsub"
 #define CONFIG_STRLEN 64
 
-#define PARAM_TYPE_NUM 0
-#define PARAM_TYPE_STR 1
+#define THRESHOLD_TYPE_NUM 0
+#define THRESHOLD_TYPE_STR 1
 
 #define QOS_ATMOST_ONCE 0
 #define QOS_ATLEAST_ONCE 1
@@ -22,11 +22,17 @@
 #define CONDITION_LE 4 /* <= */
 #define CONDITION_NE 5 /* != */
 
+typedef struct event_threshold {
+	int type;
+	double number;
+	char string[CONFIG_STRLEN];
+} threshold_t;
+
 typedef struct event_config {
 	char param[CONFIG_STRLEN];
 	int type;
 	int condition;
-	double threshold;
+	threshold_t threshold;
 	list_t *email_list;
 } event_t;
 
