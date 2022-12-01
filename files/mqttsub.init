@@ -14,7 +14,7 @@ start_service() {
 
 	config_load mqttsub
 
-	config_get enabled mqttsub enabled
+	config_get enabled mqttsub enabled '0'
 	if [ "$enabled" -ne 1 ]; then
 		return
 	fi
