@@ -107,6 +107,7 @@ static int parse_event(event_t *event,
 	if (opt && opt->type == UCI_TYPE_STRING) {
 		strncpy(event->param, opt->v.string, CONFIG_STRLEN);
 	} else {
+		syslog(LOG_ERR, "No param in event config\n");
 		return -1;
 	}
 
@@ -116,9 +117,12 @@ static int parse_event(event_t *event,
 			event->threshold.type = THRESHOLD_TYPE_NUM;
 		else if (!strcmp(opt->v.string, "string"))
 			event->threshold.type = THRESHOLD_TYPE_STR;
-		else
+		else {
+			syslog(LOG_ERR, "Not a valid type in event config\n");
 			return -1;
+		}
 	} else {
+		syslog(LOG_ERR, "No type in event config\n");
 		return -1;
 	}
 
@@ -133,6 +137,7 @@ static int parse_event(event_t *event,
 				break;
 		}
 	} else {
+		syslog(LOG_ERR, "No threshold in event config\n");
 		return -1;
 	}
 
@@ -150,9 +155,12 @@ static int parse_event(event_t *event,
 			event->condition = CONDITION_GE;
 		else if (!strcmp(opt->v.string, "<="))
 			event->condition = CONDITION_LE;
-		else
+		else {
+			syslog(LOG_ERR, "Not a valid condition in event config\n");
 			return -1;
+		}
 	} else {
+		syslog(LOG_ERR, "No condition in event config\n");
 		return -1;
 	}
 
@@ -173,6 +181,7 @@ static int parse_event(event_t *event,
 			strncpy(email, elm->name, CONFIG_STRLEN);
 		}
 	} else {
+		syslog(LOG_ERR, "No email in event config\n");
 		return -1;
 	}
 

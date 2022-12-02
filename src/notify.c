@@ -76,9 +76,12 @@ int notify_recipients(smtp_t *smtp, list_t *email_list, char *msg) {
 
     res = curl_easy_perform(curl);
  
-    if(res != CURLE_OK)
+    if(res != CURLE_OK) {
       syslog(LOG_ERR, "Email could not be sent: %s\n",
               curl_easy_strerror(res));
+    } else {
+      syslog(LOG_NOTICE, "Email was sent successfully");
+    }
 
     curl_slist_free_all(recipients);
     curl_easy_cleanup(curl);

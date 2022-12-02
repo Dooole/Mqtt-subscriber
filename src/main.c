@@ -77,7 +77,7 @@ static void message_cb(struct mosquitto *mosq, void *obj, const struct mosquitto
         syslog(LOG_ERR, "Received unconfigured topic '%s'\n", msg->topic);
         return;
     } else {
-        syslog(LOG_WARNING, "Processing JSON on topic '%s'\n", msg->topic);
+        syslog(LOG_WARNING, "Processing message on topic '%s'\n", msg->topic);
     }
 
     struct json_object *root = json_tokener_parse((char *)msg->payload);
